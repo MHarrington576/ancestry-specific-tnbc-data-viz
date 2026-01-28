@@ -243,3 +243,11 @@ make_manifest \
 make_manifest \
   tnbc_mutations_black_one_per_case.txt \
   gdc_manifest_tnbc_black_somatic_mutations.tsv
+
+##############################################################
+
+#Need to download from manifest files in separate directories
+#gdc-client download -m gdc_manifest_tnbc...
+
+#Need to gunzip all files in Bash with gunzip:
+#find . -type f -name "*.gz" -exec gunzip {} +
