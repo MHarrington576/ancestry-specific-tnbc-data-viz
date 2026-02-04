@@ -7,7 +7,6 @@ cd tnbc_manifest_output
 ###(1) DOWNLOAD CLINICAL MATRIX FROM XENA###
 echo "(1/5) Downloading TCGA-BRCA clinical matrix from UCSC Xena..."
 
-# Download from Xena
 URL=(
     "https://tcga.xenahubs.net/download/TCGA.BRCA.sampleMap/BRCA_clinicalMatrix"
 )
@@ -37,7 +36,7 @@ echo "(2/5) Extracting triple-negative samples (ER-, PR-, HER2-) from Xena matri
 awk -F'\t' '
   BEGIN {OFS="\t"}
   NR==1 {
-    # Find column indices
+    # From columns
     for (i=1; i<=NF; i++) {
       if ($i=="ER_Status_nature2012") er=i
       if ($i=="PR_Status_nature2012") pr=i
