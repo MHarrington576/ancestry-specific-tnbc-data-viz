@@ -1,5 +1,4 @@
 # For CU Data Visualization 2026: ancestry-specific-tnbc-data-viz
-***
 
 > This program uses the [U.S. Genomic Data Commons (GDC)](https://portal.gdc.cancer.gov/) to access open-source data from The Cancer Genome Atlas (TCGA) project.
 
