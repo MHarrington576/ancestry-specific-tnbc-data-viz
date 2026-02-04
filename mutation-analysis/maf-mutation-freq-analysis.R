@@ -1,6 +1,7 @@
 #!/usr/bin/env Rscript
 
-# MAF Somatic Mutation Frequency Analysis
+###Run this script in the same subdirectory where the GDC data was downloaded
+###Run separate ancestry groups in separate subdirectories
 
 suppressPackageStartupMessages({
   library(data.table)
@@ -8,12 +9,13 @@ suppressPackageStartupMessages({
   library(readr)
 })
 
-cat("MAF Somatic Mutation Frequency Analysis - TSV OUTPUT FIXED\n")
-cat("=========================================\n\n")
+cat("MAF Somatic Mutation Frequency Analysis\n\n")
 
-# Function to find all MAF files one subdirectory down
+###(1) LOCATE MAF FILES###
+
+# Find all MAF files one subdirectory down
 find_maf_files <- function() {
-  cat("Searching for MAF files in subdirectories...\n")
+  cat("(1) Searching for MAF files in subdirectories...\n")
   
   # Find all .maf files in immediate subdirectories
   maf_files <- list.files(
@@ -27,38 +29,9 @@ find_maf_files <- function() {
   maf_files <- maf_files[grepl("^\\./[^/]+/[^/]+\\.maf$", maf_files)]
   
   if (length(maf_files) == 0) {
-    cat("No MAF files found in subdirectories!\n")
-    cat("Current directory structure:\n")
+    cat("No MAF files found in subdirectories.\n")
     
-    # Show directory structure to help debug
-    dirs <- list.dirs(".", recursive = FALSE, full.names = FALSE)
-    if (length(dirs) > 0) {
-      for (dir in dirs) {
-        cat(sprintf("  %s/\n", dir))
-        files <- list.files(file.path(".", dir), pattern = "\\.maf$")
-        if (length(files) > 0) {
-          for (file in files) {
-            cat(sprintf("    %s\n", file))
-          }
-        } else {
-          cat("    (no .maf files)\n")
-        }
-      }
-    } else {
-      cat("  (no subdirectories found)\n")
-    }
-    
-    # Also check for any MAF files in current directory
-    current_mafs <- list.files(".", pattern = "\\.maf$", full.names = FALSE)
-    if (length(current_mafs) > 0) {
-      cat("\nMAF files in current directory (will be ignored by this script):\n")
-      for (file in current_mafs) {
-        cat(sprintf("  %s\n", file))
-      }
-      cat("Move these files to subdirectories to analyze them.\n")
-    }
-    
-    stop("No valid MAF files found!")
+    stop("No valid MAF files found.")
   }
   
   cat(sprintf("Found %d MAF files:\n", length(maf_files)))
@@ -70,7 +43,12 @@ find_maf_files <- function() {
   return(maf_files)
 }
 
-# Function to safely read MAF file
+###(2) READ MAF FILES###
+
+cat("(2) Reading MAF files...\n")
+
+# Function to read MAF file
+
 read_maf_safe <- function(file_path) {
   cat(sprintf("Reading: %s\n", basename(file_path)))
   
@@ -86,7 +64,7 @@ read_maf_safe <- function(file_path) {
       return(NULL)
     }
     
-    # Read with data.table for speed
+    # Read with data.table
     maf_data <- fread(file_path, 
                       sep = "\t", 
                       header = TRUE,
@@ -118,7 +96,7 @@ read_maf_safe <- function(file_path) {
       cat(sprintf("Filtered to somatic mutations: %d -> %d\n", before_count, nrow(maf_data)))
     }
     
-    # Remove silent mutations if present
+    # Remove silent mutations, if present
     if ("Variant_Classification" %in% colnames(maf_data)) {
       before_count <- nrow(maf_data)
       maf_data <- maf_data[Variant_Classification != "Silent"]
@@ -141,9 +119,11 @@ read_maf_safe <- function(file_path) {
   })
 }
 
+###(3) PROCESS MAF FILES###
+
 # Function to process all MAF files
 process_all_mafs <- function(maf_files) {
-  cat("Processing all MAF files...\n")
+  cat("(3) Processing MAF files...\n")
   
   all_mutations <- list()
   total_samples <- character(0)
@@ -183,9 +163,11 @@ process_all_mafs <- function(maf_files) {
   ))
 }
 
+###(4) CALCULATE MUTATION FREQUENCIES###
+
 # Function to calculate mutation frequencies
 calculate_mutation_frequencies <- function(mutations_data, total_samples) {
-  cat("Calculating mutation frequencies per gene...\n")
+  cat("(4) Calculating mutation frequencies per gene...\n")
   
   mutations <- mutations_data$mutations
   
@@ -209,7 +191,7 @@ calculate_mutation_frequencies <- function(mutations_data, total_samples) {
   gene_stats$Chromosome <- gsub("^24$", "Y", gene_stats$Chromosome)
   
   cat(sprintf("Calculated frequencies for %d genes\n", nrow(gene_stats)))
-  cat("Top 5 most frequently mutated genes:\n")
+  cat("Top 5 most frequently mutated genes in this cohort:\n")
   
   for (i in 1:min(5, nrow(gene_stats))) {
     cat(sprintf("  %d. %s (chr%s): %d/%d samples (%.2f%%)\n",
@@ -225,11 +207,13 @@ calculate_mutation_frequencies <- function(mutations_data, total_samples) {
   return(gene_stats)
 }
 
-# FIXED: Function to write properly formatted TSV results
+###(5) FORMAT RESULTS AS TSV###
+
+# Function to write formatted TSV results
 write_results <- function(gene_stats, total_samples) {
   output_file <- "top_25_mutated_genes.tsv"
   
-  cat("Writing results to", output_file, "...\n")
+  cat("(5) Writing results to", output_file, "...\n")
   
   # Prepare final output with proper column names
   final_results <- gene_stats %>%
@@ -241,10 +225,7 @@ write_results <- function(gene_stats, total_samples) {
       Mutation_Percentage = mutation_percentage
     )
   
-  # FIXED: Create proper TSV output using base R functions
-  # This ensures proper tab separation
-  
-  # Create the file connection
+  # Create file connection
   con <- file(output_file, "w")
   
   # Write header comments
@@ -256,11 +237,11 @@ write_results <- function(gene_stats, total_samples) {
     "#"
   ), con)
   
-  # Write column headers with proper tab separation
+  # Write column headers with tab separation
   header_line <- paste(colnames(final_results), collapse = "\t")
   writeLines(header_line, con)
   
-  # Write data rows with proper tab separation
+  # Write data rows with tabs
   for (i in 1:nrow(final_results)) {
     data_line <- paste(
       final_results$Gene_Symbol[i],
@@ -282,28 +263,17 @@ write_results <- function(gene_stats, total_samples) {
   cat(sprintf("   - Genes analyzed: %d\n", nrow(final_results)))
   cat(sprintf("   - Output file: %s\n", output_file))
   
-  # Verify TSV format by reading first few lines
-  cat("\nTSV Format Verification (first 3 data rows):\n")
-  verification_lines <- readLines(output_file)
-  # Skip comment lines and show header + first 3 data rows
-  data_start <- which(!grepl("^#", verification_lines))[1]
-  verification_end <- min(data_start + 3, length(verification_lines))
-  
-  for (i in data_start:verification_end) {
-    cat(sprintf("  %s\n", verification_lines[i]))
-  }
-  
   return(output_file)
 }
 
-# Main execution function
+# Main function
 main <- function() {
   start_time <- Sys.time()
   
   tryCatch({
     cat("Starting MAF analysis...\n\n")
     
-    # Step 1: Find MAF files
+    # Step 1: Find & read MAF files
     maf_files <- find_maf_files()
     
     # Step 2: Process all MAF files
@@ -316,7 +286,7 @@ main <- function() {
     output_file <- write_results(gene_stats, mutations_data$total_samples)
     
     end_time <- Sys.time()
-    cat(sprintf("\nAnalysis completed successfully in %.2f seconds!\n", 
+    cat(sprintf("\nAnalysis completed successfully in %.2f seconds.", 
                 as.numeric(difftime(end_time, start_time, units = "secs"))))
     
   }, error = function(e) {
@@ -340,7 +310,6 @@ main <- function() {
   })
 }
 
-# FIXED: Always run the analysis, regardless of interactive mode
 cat("Running in", ifelse(interactive(), "interactive", "script"), "mode\n\n")
 
 # Run the analysis immediately
